@@ -10,7 +10,7 @@ conda_env_path = os.path.join(script_dir, "installer_files", "env")
 
 # Use this to set your command-line flags. For the full list, see:
 # https://github.com/oobabooga/text-generation-webui/#starting-the-web-ui
-CMD_FLAGS = '--chat --character Chiharu_Yamada --loader transformers --load-in-8bit --disk --model chinese-alpaca-plus-13b-hf --auto-devices --n-gpu-layers 200000 --auto-launch --listen --listen-host 0.0.0.0 --listen-port 7861 --api'
+CMD_FLAGS = '--chat --character Chiharu_Yamada --loader transformers --load-in-8bit --disk --model chinese-alpaca-plus-13b-hf --auto-devices --n-gpu-layers 200000 --auto-launch --listen --api'
 
 
 # Allows users to set flags in "OOBABOOGA_FLAGS" environment variable
