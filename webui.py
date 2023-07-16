@@ -1,5 +1,6 @@
 import argparse
 import glob
+import re
 import os
 import site
 import subprocess
@@ -10,6 +11,7 @@ conda_env_path = os.path.join(script_dir, "installer_files", "env")
 
 # Use this to set your command-line flags. For the full list, see:
 # https://github.com/oobabooga/text-generation-webui/#starting-the-web-ui
+# Example: CMD_FLAGS = '--chat --listen'
 CMD_FLAGS = '--chat --character Chiharu_Yamada --loader exllama_hf --disk --model anon8231489123_vicuna-13b-GPTQ-4bit-128g --auto-devices --n-gpu-layers 200000 --auto-launch --listen --listen-port 7861 --api'
 
 
@@ -94,15 +96,23 @@ def install_dependencies():
     elif gpuchoice == "b":
         print("AMD GPUs are not supported. Exiting...")
         sys.exit()
-    elif gpuchoice == "c" or gpuchoice == "d":
+    elif gpuchoice == "c":
         run_cmd("conda install -y -k ninja git && python -m pip install torch torchvision torchaudio",
                 assert_success=True, environment=True)
+    elif gpuchoice == "d":
+        if sys.platform.startswith("linux"):
+            run_cmd("conda install -y -k ninja git && python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu",
+                    assert_success=True, environment=True)
+        else:
+            run_cmd("conda install -y -k ninja git && python -m pip install torch torchvision torchaudio",
+                    assert_success=True, environment=True)
+
     else:
         print("Invalid choice. Exiting...")
         sys.exit()
 
     # Clone webui to our computer
-    run_cmd("git clone -b my-textgen-20230714 https://ghproxy.com/https://github.com/yulu86/text-generation-webui.git",
+    run_cmd("git clone -b my-textgen-20230716_v1.2 https://ghproxy.com/https://github.com/yulu86/text-generation-webui.git",
             assert_success=True, environment=True)
 
     # Install the webui dependencies
@@ -113,11 +123,11 @@ def update_dependencies():
     os.chdir("text-generation-webui")
     run_cmd("git pull", assert_success=True, environment=True)
 
-    # Workaround for git+ packages not updating properly
+    # Workaround for git+ packages not updating properly  Also store requirements.txt for later use
     with open("requirements.txt") as f:
-        requirements = f.read().splitlines()
+        textgen_requirements = f.read()
         git_requirements = [
-            req for req in requirements if req.startswith("git+")]
+            req for req in textgen_requirements.splitlines() if req.startswith("git+")]
 
     # Loop through each "git+" requirement and uninstall it
     for req in git_requirements:
@@ -170,6 +180,14 @@ def update_dependencies():
     if '+cu' not in torver and run_cmd("conda list -f pytorch-cuda | grep pytorch-cuda", environment=True, capture_output=True).returncode == 1:
         return
 
+    # Install llama-cpp-python built with cuBLAS support for NVIDIA GPU acceleration
+    if '+cu' in torver:
+        llama_cpp = re.search(
+            '(?<=llama-cpp-python==)\d+(?:\.\d+)*', textgen_requirements)
+        if llama_cpp is not None:
+            run_cmd(
+                f'python -m pip install llama-cpp-python=={llama_cpp[0]} --force-reinstall --no-deps --index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu117', environment=True)
+
     # Finds the path to your dependencies
     for sitedir in site.getsitepackages():
         if "site-packages" in sitedir:
@@ -192,7 +210,7 @@ def update_dependencies():
 
     # Install or update exllama as needed
     if not os.path.exists("exllama/"):
-        run_cmd("git clone https://github.com/turboderp/exllama.git",
+        run_cmd("git clone https://ghproxy.com/https://github.com/turboderp/exllama.git",
                 environment=True)
     else:
         os.chdir("exllama")
@@ -206,7 +224,7 @@ def update_dependencies():
 
     # Install GPTQ-for-LLaMa which enables 4bit CUDA quantization
     if not os.path.exists("GPTQ-for-LLaMa/"):
-        run_cmd("git clone https://github.com/oobabooga/GPTQ-for-LLaMa.git -b cuda",
+        run_cmd("git clone https://ghproxy.com/https://github.com/oobabooga/GPTQ-for-LLaMa.git -b cuda",
                 assert_success=True, environment=True)
 
     # Install GPTQ-for-LLaMa dependencies
